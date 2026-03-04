@@ -24,9 +24,9 @@ const PRIORITY_COLORS: Record<string, string> = {
 };
 
 const STATUS_ICONS: Record<string, string> = {
-  todo: '○',
-  in_progress: '◐',
-  done: '●',
+  todo: '\u25CB',
+  in_progress: '\u25D0',
+  done: '\u25CF',
 };
 
 export function TaskCardComponent({
@@ -48,7 +48,7 @@ export function TaskCardComponent({
   } | null>(null);
 
   const [isDragging, setIsDragging] = useState(false);
-  const clickTimer = useRef<number | null>(null);
+  const [isHovered, setIsHovered] = useState(false);
 
   // Position calculations
   const hasStartDate = !!task.startDate;
@@ -150,26 +150,23 @@ export function TaskCardComponent({
     window.addEventListener('mouseup', handleUp);
   }, [isLocked, x, scrollX, width, task, origin, zoom, rowHeight, updateTask, emitUpdate]);
 
-  // Click handlers
+  // Click handler: single click selects
   const handleClick = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
     if (isDragging) return;
+    setSelectedTask(task.id);
+  }, [isDragging, task.id, setSelectedTask]);
 
-    if (clickTimer.current) {
-      // Double click
-      clearTimeout(clickTimer.current);
-      clickTimer.current = null;
-      setModalTask(task.id);
-    } else {
-      clickTimer.current = window.setTimeout(() => {
-        clickTimer.current = null;
-        setSelectedTask(task.id);
-      }, 250);
-    }
-  }, [isDragging, task.id, setModalTask, setSelectedTask]);
+  // Edit button click: open modal directly
+  const handleEditClick = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
+    setModalTask(task.id);
+  }, [task.id, setModalTask]);
 
   return (
     <div
+      data-task-card
       style={{
         position: 'absolute',
         left: x,
@@ -196,6 +193,8 @@ export function TaskCardComponent({
       }}
       onMouseDown={(e) => handleMouseDown(e, 'move')}
       onClick={handleClick}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
     >
       {/* Left resize handle */}
       {!isLocked && (
@@ -221,12 +220,39 @@ export function TaskCardComponent({
         <span style={{ marginLeft: 4, color: '#ff6b6b', fontSize: 10 }}>!</span>
       )}
       {isLocked && (
-        <span style={{ marginLeft: 4, fontSize: 10, opacity: 0.6 }}>🔒</span>
+        <span style={{ marginLeft: 4, fontSize: 10, opacity: 0.6 }}>{'\uD83D\uDD12'}</span>
       )}
       {hasEta && !hasStartDate && (
         <span style={{ marginLeft: 4, fontSize: 9, opacity: 0.6, background: 'rgba(0,0,0,0.3)', padding: '1px 3px', borderRadius: 2 }}>
           ETA
         </span>
+      )}
+
+      {/* Edit button (visible on hover) */}
+      {isHovered && !isDragging && (
+        <div
+          onClick={handleEditClick}
+          onMouseDown={(e) => e.stopPropagation()}
+          style={{
+            marginLeft: 4,
+            width: 22,
+            height: 22,
+            borderRadius: 4,
+            background: 'rgba(255,255,255,0.2)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            cursor: 'pointer',
+            flexShrink: 0,
+            transition: 'background 0.15s',
+          }}
+          onMouseOver={(e) => (e.currentTarget.style.background = 'rgba(255,255,255,0.35)')}
+          onMouseOut={(e) => (e.currentTarget.style.background = 'rgba(255,255,255,0.2)')}
+        >
+          <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M11.5 1.5l3 3L5 14H2v-3L11.5 1.5z" />
+          </svg>
+        </div>
       )}
 
       {/* Right resize handle */}

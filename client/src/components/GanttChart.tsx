@@ -2,7 +2,7 @@ import React, { useRef, useEffect, useCallback, useState } from 'react';
 import { useChartStore, getZoomConfig } from '../store/chartStore';
 import { useTaskStore, TaskCard } from '../store/taskStore';
 import { useThemeStore } from '../store/themeStore';
-import { dateToX, xToDate, generateTimelineUnits, generateSubHeaders } from '../utils/date';
+import { dateToX, xToDate, generateTimelineUnits, generateSubHeaders, ZOOM_ORDER, ZoomLevel } from '../utils/date';
 import { TaskCardComponent } from './TaskCard';
 import { TaskModal } from './TaskModal';
 import { useProjectStore } from '../store/projectStore';
@@ -19,13 +19,13 @@ export function GanttChart() {
 
   const {
     scrollX, scrollY, zoomLevel, origin, viewportWidth, viewportHeight,
-    setScroll, setScrollX, setScrollY, zoomIn, zoomOut, setViewport,
+    setScroll, setScrollX, setScrollY, setZoomLevel, zoomIn, zoomOut, setViewport,
   } = useChartStore();
 
   const { tasks, modalTaskId, setModalTask, createTask, selectedTaskId, setSelectedTask } = useTaskStore();
   const currentProject = useProjectStore((s) => s.currentProject);
   const colors = useThemeStore((s) => s.colors);
-  const zoom = getZoomConfig(zoomLevel);
+  const zoom = getZoomConfig(zoomLevel, viewportWidth);
 
   // Resize observer
   useEffect(() => {
@@ -39,16 +39,63 @@ export function GanttChart() {
     return () => observer.disconnect();
   }, [setViewport]);
 
-  // Mouse wheel for zoom and scroll
-  const handleWheel = useCallback((e: React.WheelEvent) => {
-    if (e.ctrlKey || e.metaKey) {
-      e.preventDefault();
-      if (e.deltaY < 0) zoomIn();
-      else zoomOut();
-    } else {
-      setScroll(scrollX + e.deltaX, Math.max(0, scrollY + e.deltaY));
-    }
-  }, [scrollX, scrollY, zoomIn, zoomOut, setScroll]);
+  // Native wheel handler to properly preventDefault for Ctrl+scroll
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+
+    const handleNativeWheel = (e: WheelEvent) => {
+      if (e.ctrlKey || e.metaKey) {
+        // Ctrl/Cmd + scroll: zoom in/out (prevent browser zoom)
+        e.preventDefault();
+        const { scrollX, zoomLevel, viewportWidth, origin } = useChartStore.getState();
+        const currentZoom = getZoomConfig(zoomLevel, viewportWidth);
+
+        // Calculate the date at the mouse position before zoom
+        const rect = el.getBoundingClientRect();
+        const mouseX = e.clientX - rect.left;
+        const mouseDateX = scrollX + mouseX;
+        const mouseDate = xToDate(mouseDateX, origin, currentZoom);
+
+        // Determine new zoom level
+        const currentIdx = ZOOM_ORDER.indexOf(zoomLevel);
+        let newLevel: ZoomLevel;
+        if (e.deltaY < 0) {
+          // Zoom in
+          newLevel = currentIdx > 0 ? ZOOM_ORDER[currentIdx - 1] : zoomLevel;
+        } else {
+          // Zoom out
+          newLevel = currentIdx < ZOOM_ORDER.length - 1 ? ZOOM_ORDER[currentIdx + 1] : zoomLevel;
+        }
+
+        if (newLevel !== zoomLevel) {
+          const newZoom = getZoomConfig(newLevel, viewportWidth);
+          // Calculate where the same date would be in the new zoom
+          const newMouseDateX = dateToX(mouseDate, origin, newZoom);
+          // Adjust scroll so the date stays under the mouse
+          const newScrollX = newMouseDateX - mouseX;
+
+          useChartStore.setState({ zoomLevel: newLevel, scrollX: newScrollX });
+        }
+      } else if (e.shiftKey) {
+        // Shift + scroll: horizontal scrolling
+        e.preventDefault();
+        const { scrollX } = useChartStore.getState();
+        const delta = e.deltaY !== 0 ? e.deltaY : e.deltaX;
+        useChartStore.setState({ scrollX: scrollX + delta });
+      } else {
+        // Normal scroll: vertical + horizontal
+        const { scrollX, scrollY } = useChartStore.getState();
+        useChartStore.setState({
+          scrollX: scrollX + e.deltaX,
+          scrollY: Math.max(0, scrollY + e.deltaY),
+        });
+      }
+    };
+
+    el.addEventListener('wheel', handleNativeWheel, { passive: false });
+    return () => el.removeEventListener('wheel', handleNativeWheel);
+  }, []);
 
   // Pan dragging
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
@@ -71,9 +118,16 @@ export function GanttChart() {
     isDragging.current = false;
   }, []);
 
-  // Double-click to create task
+  // Double-click to create task (only on blank grid area)
   const handleDoubleClick = useCallback((e: React.MouseEvent) => {
     if (!currentProject) return;
+
+    // Only create task when clicking on the grid background, not on buttons or task cards
+    const target = e.target as HTMLElement;
+    if (target.closest('button') || target.closest('[data-task-card]') || target.closest('[data-zoom-controls]')) {
+      return;
+    }
+
     const rect = containerRef.current!.getBoundingClientRect();
     const x = e.clientX - rect.left + scrollX;
     const y = e.clientY - rect.top + scrollY - HEADER_HEIGHT;
@@ -118,7 +172,6 @@ export function GanttChart() {
         cursor: isDragging.current ? 'grabbing' : 'default',
         userSelect: 'none',
       }}
-      onWheel={handleWheel}
       onMouseDown={handleMouseDown}
       onMouseMove={handleMouseMove}
       onMouseUp={handleMouseUp}
@@ -137,26 +190,66 @@ export function GanttChart() {
         overflow: 'hidden',
         zIndex: 10,
       }}>
-        {subHeaders.map((unit, i) => (
-          <div
-            key={i}
-            style={{
-              position: 'absolute',
-              left: unit.x - scrollX,
-              width: unit.width,
-              height: 24,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: colors.textMuted,
-              fontSize: 11,
-              fontWeight: 600,
-              borderRight: `1px solid ${colors.borderSecondary}`,
-            }}
-          >
-            {unit.label}
-          </div>
-        ))}
+        {subHeaders.map((unit, i) => {
+          const left = unit.x - scrollX;
+          const right = left + unit.width;
+
+          // For day zoom, clamp the label to stay within the visible viewport
+          if (zoomLevel === 'day') {
+            const visibleLeft = Math.max(left, 0);
+            const visibleRight = Math.min(right, viewportWidth);
+            const visibleWidth = visibleRight - visibleLeft;
+            if (visibleWidth <= 0) return null;
+
+            return (
+              <div
+                key={i}
+                style={{
+                  position: 'absolute',
+                  left,
+                  width: unit.width,
+                  height: 24,
+                  display: 'flex',
+                  alignItems: 'center',
+                  color: colors.textMuted,
+                  fontSize: 11,
+                  fontWeight: 600,
+                  borderRight: `1px solid ${colors.borderSecondary}`,
+                }}
+              >
+                <span style={{
+                  position: 'sticky',
+                  left: 8,
+                  right: 8,
+                  marginLeft: Math.max(0, -left) + 8,
+                }}>
+                  {unit.label}
+                </span>
+              </div>
+            );
+          }
+
+          return (
+            <div
+              key={i}
+              style={{
+                position: 'absolute',
+                left,
+                width: unit.width,
+                height: 24,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: colors.textMuted,
+                fontSize: 11,
+                fontWeight: 600,
+                borderRight: `1px solid ${colors.borderSecondary}`,
+              }}
+            >
+              {unit.label}
+            </div>
+          );
+        })}
       </div>
 
       {/* Main header (time units) */}
@@ -276,7 +369,7 @@ export function GanttChart() {
       </div>
 
       {/* Zoom controls */}
-      <div style={{
+      <div data-zoom-controls style={{
         position: 'absolute',
         bottom: 20,
         right: 20,
