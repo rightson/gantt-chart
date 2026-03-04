@@ -22,7 +22,7 @@ export default async function authRoutes(app: FastifyInstance) {
     try {
       const body = registerSchema.parse(request.body);
 
-      const existing = db.select().from(schema.users).where(eq(schema.users.email, body.email)).get();
+      const [existing] = await db.select().from(schema.users).where(eq(schema.users.email, body.email));
       if (existing) {
         return reply.code(409).send({ error: 'Email already registered' });
       }
@@ -31,13 +31,13 @@ export default async function authRoutes(app: FastifyInstance) {
       const passwordHash = await bcrypt.hash(body.password, 10);
       const now = new Date().toISOString();
 
-      db.insert(schema.users).values({
+      await db.insert(schema.users).values({
         id,
         email: body.email,
         name: body.name,
         passwordHash,
         createdAt: now,
-      }).run();
+      });
 
       const token = signToken({ userId: id, email: body.email });
       return { token, user: { id, email: body.email, name: body.name, createdAt: now } };
@@ -54,7 +54,7 @@ export default async function authRoutes(app: FastifyInstance) {
     try {
       const body = loginSchema.parse(request.body);
 
-      const user = db.select().from(schema.users).where(eq(schema.users.email, body.email)).get();
+      const [user] = await db.select().from(schema.users).where(eq(schema.users.email, body.email));
       if (!user) {
         return reply.code(401).send({ error: 'Invalid credentials' });
       }
@@ -79,7 +79,7 @@ export default async function authRoutes(app: FastifyInstance) {
   });
 
   app.get('/me', { onRequest: authHook }, async (request, reply) => {
-    const user = db.select().from(schema.users).where(eq(schema.users.id, request.user!.userId)).get();
+    const [user] = await db.select().from(schema.users).where(eq(schema.users.id, request.user!.userId));
     if (!user) {
       return reply.code(404).send({ error: 'User not found' });
     }

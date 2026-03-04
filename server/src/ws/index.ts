@@ -47,9 +47,9 @@ export function setupWebSocket(httpServer: any) {
       socket.to(`project:${data.projectId}`).emit('task:created', data.task);
     });
 
-    socket.on('task:updated', (data: { projectId: string; taskId: string; changes: any }) => {
+    socket.on('task:updated', async (data: { projectId: string; taskId: string; changes: any }) => {
       // Persist changes
-      const existing = db.select().from(schema.tasks).where(eq(schema.tasks.id, data.taskId)).get();
+      const [existing] = await db.select().from(schema.tasks).where(eq(schema.tasks.id, data.taskId));
       if (existing && !existing.isLocked) {
         const updates: Record<string, any> = { updatedAt: new Date().toISOString() };
         const changes = data.changes;
@@ -64,11 +64,11 @@ export function setupWebSocket(httpServer: any) {
         if (changes.priority !== undefined) updates.priority = changes.priority;
         if (changes.category !== undefined) updates.category = changes.category;
         if (changes.color !== undefined) updates.color = changes.color;
-        if (changes.isLocked !== undefined) updates.is_locked = changes.isLocked ? 1 : 0;
+        if (changes.isLocked !== undefined) updates.is_locked = changes.isLocked;
         if (changes.tags !== undefined) updates.tags = JSON.stringify(changes.tags);
         if (changes.memberIds !== undefined) updates.member_ids = JSON.stringify(changes.memberIds);
 
-        db.update(schema.tasks).set(updates).where(eq(schema.tasks.id, data.taskId)).run();
+        await db.update(schema.tasks).set(updates).where(eq(schema.tasks.id, data.taskId));
       }
 
       socket.to(`project:${data.projectId}`).emit('task:updated', {

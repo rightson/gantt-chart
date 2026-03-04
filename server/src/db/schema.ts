@@ -1,6 +1,6 @@
-import { sqliteTable, text, integer } from 'drizzle-orm/sqlite-core';
+import { pgTable, text, integer, boolean } from 'drizzle-orm/pg-core';
 
-export const users = sqliteTable('users', {
+export const users = pgTable('users', {
   id: text('id').primaryKey(),
   email: text('email').notNull().unique(),
   name: text('name').notNull(),
@@ -8,7 +8,7 @@ export const users = sqliteTable('users', {
   createdAt: text('created_at').notNull(),
 });
 
-export const projects = sqliteTable('projects', {
+export const projects = pgTable('projects', {
   id: text('id').primaryKey(),
   name: text('name').notNull(),
   description: text('description'),
@@ -17,28 +17,28 @@ export const projects = sqliteTable('projects', {
   updatedAt: text('updated_at').notNull(),
 });
 
-export const projectMembers = sqliteTable('project_members', {
+export const projectMembers = pgTable('project_members', {
   id: text('id').primaryKey(),
   projectId: text('project_id').notNull().references(() => projects.id),
   userId: text('user_id').notNull().references(() => users.id),
-  role: text('role', { enum: ['owner', 'editor', 'viewer'] }).notNull().default('editor'),
+  role: text('role').notNull().default('editor'),
 });
 
-export const tasks = sqliteTable('tasks', {
+export const tasks = pgTable('tasks', {
   id: text('id').primaryKey(),
   projectId: text('project_id').notNull().references(() => projects.id),
   title: text('title').notNull(),
   description: text('description'),
   category: text('category'),
-  tags: text('tags').notNull().default('[]'), // JSON array
+  tags: text('tags').notNull().default('[]'),
   ownerId: text('owner_id').references(() => users.id),
-  memberIds: text('member_ids').notNull().default('[]'), // JSON array
+  memberIds: text('member_ids').notNull().default('[]'),
   startDate: text('start_date'),
   dueDate: text('due_date'),
   etaDate: text('eta_date'),
-  priority: text('priority', { enum: ['low', 'medium', 'high', 'urgent'] }).notNull().default('medium'),
-  status: text('status', { enum: ['todo', 'in_progress', 'done'] }).notNull().default('todo'),
-  isLocked: integer('is_locked', { mode: 'boolean' }).notNull().default(false),
+  priority: text('priority').notNull().default('medium'),
+  status: text('status').notNull().default('todo'),
+  isLocked: boolean('is_locked').notNull().default(false),
   row: integer('row').notNull().default(0),
   color: text('color'),
   createdAt: text('created_at').notNull(),

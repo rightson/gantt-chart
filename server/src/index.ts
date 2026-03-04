@@ -6,7 +6,7 @@ import taskRoutes from './routes/tasks.js';
 import { setupWebSocket } from './ws/index.js';
 
 // Run migration on startup
-import './db/migrate.js';
+await import('./db/migrate.js');
 
 const app = Fastify({ logger: true });
 

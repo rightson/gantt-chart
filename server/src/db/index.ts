@@ -1,10 +1,9 @@
-import Database from 'better-sqlite3';
-import { drizzle } from 'drizzle-orm/better-sqlite3';
+import { drizzle } from 'drizzle-orm/postgres-js';
+import postgres from 'postgres';
 import * as schema from './schema.js';
 
-const sqlite = new Database('gantt.db');
-sqlite.pragma('journal_mode = WAL');
-sqlite.pragma('foreign_keys = ON');
+const connectionString = process.env.DATABASE_URL || 'postgres://localhost:5432/gantt';
 
-export const db = drizzle(sqlite, { schema });
+const sql = postgres(connectionString);
+export const db = drizzle(sql, { schema });
 export { schema };

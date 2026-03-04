@@ -21,7 +21,7 @@ No test runner or linter is currently configured.
 
 ### Server (Fastify + TypeScript)
 - **Framework**: Fastify 5 with `@fastify/cors`. Routes registered as async Fastify plugins with `app.register()` and prefix options.
-- **Database**: SQLite via better-sqlite3 + Drizzle ORM. Schema in `server/src/db/schema.ts`, auto-migration in `server/src/db/migrate.ts` (runs on startup). DB file: `gantt.db`.
+- **Database**: PostgreSQL via postgres.js + Drizzle ORM. Schema in `server/src/db/schema.ts`, auto-migration in `server/src/db/migrate.ts` (runs on startup). Connection string from `DATABASE_URL` env var (defaults to `postgres://localhost:5432/gantt`).
 - **Auth**: JWT (7-day expiry, secret from `JWT_SECRET` env var). Passwords hashed with bcryptjs. Auth hook in `server/src/middleware/auth.ts` attaches `request.user` with `{ userId, email }`. Applied per-route via `onRequest` hook (not global middleware).
 - **REST API**: All routes under `/api`. Auth routes (`/api/auth/*`) are public; project and task routes apply `authHook` via `addHook('onRequest', authHook)`.
 - **WebSocket**: Socket.IO in `server/src/ws/index.ts`, attached to `app.server` after `app.ready()`. JWT verified on connection. Room-based: clients join `project:{id}` rooms. Handles `task:created/updated/deleted` and `cursor:move` events. Task updates are persisted to DB in the WebSocket handler.
@@ -38,7 +38,7 @@ No test runner or linter is currently configured.
 
 ## Key Patterns
 
-- **Tags and memberIds** are stored as JSON strings in SQLite, parsed/serialized in the task routes.
+- **Tags and memberIds** are stored as JSON text strings in PostgreSQL, parsed/serialized in the task routes.
 - **Task locking**: `isLocked` flag prevents edits on completed tasks (enforced in both REST PATCH and WebSocket update handlers).
 - **Dashed vs solid borders**: Tasks without both `startDate` and `dueDate` render with dashed borders; `etaDate` serves as a fallback display position.
 - **Optimistic updates**: Client updates Zustand state immediately on user action, then emits WebSocket event for other clients.

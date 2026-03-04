@@ -18,9 +18,8 @@ export default async function taskRoutes(app: FastifyInstance) {
 
   app.get('/project/:projectId', async (request) => {
     const { projectId } = request.params as any;
-    const tasks = db.select().from(schema.tasks)
-      .where(eq(schema.tasks.projectId, projectId))
-      .all();
+    const tasks = await db.select().from(schema.tasks)
+      .where(eq(schema.tasks.projectId, projectId));
     return tasks.map(serializeTask);
   });
 
@@ -33,7 +32,7 @@ export default async function taskRoutes(app: FastifyInstance) {
     const id = uuid();
     const now = new Date().toISOString();
 
-    db.insert(schema.tasks).values({
+    await db.insert(schema.tasks).values({
       id,
       projectId,
       title: title || 'Untitled Task',
@@ -50,16 +49,16 @@ export default async function taskRoutes(app: FastifyInstance) {
       color,
       createdAt: now,
       updatedAt: now,
-    }).run();
+    });
 
-    const task = db.select().from(schema.tasks).where(eq(schema.tasks.id, id)).get();
+    const [task] = await db.select().from(schema.tasks).where(eq(schema.tasks.id, id));
     reply.code(201);
     return serializeTask(task);
   });
 
   app.patch('/:id', async (request, reply) => {
     const { id } = request.params as any;
-    const existing = db.select().from(schema.tasks).where(eq(schema.tasks.id, id)).get();
+    const [existing] = await db.select().from(schema.tasks).where(eq(schema.tasks.id, id));
     if (!existing) {
       return reply.code(404).send({ error: 'Task not found' });
     }
@@ -88,22 +87,22 @@ export default async function taskRoutes(app: FastifyInstance) {
       updates.member_ids = JSON.stringify(body.memberIds);
     }
     if (body.isLocked !== undefined) {
-      updates.is_locked = body.isLocked ? 1 : 0;
+      updates.is_locked = body.isLocked;
     }
 
-    db.update(schema.tasks).set(updates).where(eq(schema.tasks.id, id)).run();
+    await db.update(schema.tasks).set(updates).where(eq(schema.tasks.id, id));
 
-    const task = db.select().from(schema.tasks).where(eq(schema.tasks.id, id)).get();
+    const [task] = await db.select().from(schema.tasks).where(eq(schema.tasks.id, id));
     return serializeTask(task);
   });
 
   app.delete('/:id', async (request, reply) => {
     const { id } = request.params as any;
-    const existing = db.select().from(schema.tasks).where(eq(schema.tasks.id, id)).get();
+    const [existing] = await db.select().from(schema.tasks).where(eq(schema.tasks.id, id));
     if (!existing) {
       return reply.code(404).send({ error: 'Task not found' });
     }
-    db.delete(schema.tasks).where(eq(schema.tasks.id, id)).run();
+    await db.delete(schema.tasks).where(eq(schema.tasks.id, id));
     return { message: 'Task deleted' };
   });
 }
