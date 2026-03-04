@@ -1,5 +1,6 @@
 import React, { useRef, useCallback, useState } from 'react';
 import { TaskCard, useTaskStore } from '../store/taskStore';
+import { useThemeStore } from '../store/themeStore';
 import { dateToX, xToDate, ZoomConfig } from '../utils/date';
 import { useSocket } from '../hooks/useSocket';
 import { useProjectStore } from '../store/projectStore';

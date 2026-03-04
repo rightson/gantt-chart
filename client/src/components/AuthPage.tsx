@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useAuthStore } from '../store/authStore';
+import { useThemeStore } from '../store/themeStore';
 
 export function AuthPage() {
   const [mode, setMode] = useState<'login' | 'register'>('login');
@@ -10,6 +11,7 @@ export function AuthPage() {
   const [loading, setLoading] = useState(false);
 
   const { login, register } = useAuthStore();
+  const colors = useThemeStore((s) => s.colors);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -29,6 +31,27 @@ export function AuthPage() {
     }
   };
 
+  const lStyle: React.CSSProperties = {
+    display: 'block',
+    color: colors.textMuted,
+    fontSize: 11,
+    marginBottom: 4,
+    fontWeight: 600,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  };
+
+  const iStyle: React.CSSProperties = {
+    width: '100%',
+    padding: '10px 12px',
+    background: colors.bgInput,
+    border: `1px solid ${colors.borderSecondary}`,
+    borderRadius: 8,
+    color: colors.textPrimary,
+    fontSize: 14,
+    outline: 'none',
+  };
+
   return (
     <div style={{
       width: '100%',
@@ -36,25 +59,25 @@ export function AuthPage() {
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
-      background: '#0d1117',
+      background: colors.bgPrimary,
     }}>
       <div style={{
-        background: '#1a1a2e',
+        background: colors.bgSecondary,
         borderRadius: 16,
         padding: 40,
         width: 400,
-        border: '1px solid #0f3460',
-        boxShadow: '0 20px 60px rgba(0,0,0,0.4)',
+        border: `1px solid ${colors.borderPrimary}`,
+        boxShadow: colors.modalShadow,
       }}>
-        <h1 style={{ color: '#e0e0ff', textAlign: 'center', marginBottom: 8, fontSize: 28 }}>
+        <h1 style={{ color: colors.textPrimary, textAlign: 'center', marginBottom: 8, fontSize: 28 }}>
           Gantt Chart
         </h1>
-        <p style={{ color: '#8888aa', textAlign: 'center', marginBottom: 30, fontSize: 13 }}>
+        <p style={{ color: colors.textMuted, textAlign: 'center', marginBottom: 30, fontSize: 13 }}>
           Project management made visual
         </p>
 
         {/* Tabs */}
-        <div style={{ display: 'flex', marginBottom: 24, borderBottom: '1px solid #333' }}>
+        <div style={{ display: 'flex', marginBottom: 24, borderBottom: `1px solid ${colors.borderSecondary}` }}>
           {(['login', 'register'] as const).map((m) => (
             <button
               key={m}
@@ -64,8 +87,8 @@ export function AuthPage() {
                 padding: '10px 0',
                 background: 'none',
                 border: 'none',
-                borderBottom: mode === m ? '2px solid #0096c7' : '2px solid transparent',
-                color: mode === m ? '#e0e0ff' : '#666',
+                borderBottom: mode === m ? `2px solid ${colors.accent}` : '2px solid transparent',
+                color: mode === m ? colors.textPrimary : colors.textMuted,
                 fontSize: 14,
                 fontWeight: 600,
                 cursor: 'pointer',
@@ -80,9 +103,9 @@ export function AuthPage() {
         <form onSubmit={handleSubmit} style={{ display: 'grid', gap: 14 }}>
           {mode === 'register' && (
             <div>
-              <label style={labelStyle}>Name</label>
+              <label style={lStyle}>Name</label>
               <input
-                style={inputStyle}
+                style={iStyle}
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 required
@@ -91,10 +114,10 @@ export function AuthPage() {
             </div>
           )}
           <div>
-            <label style={labelStyle}>Email</label>
+            <label style={lStyle}>Email</label>
             <input
               type="email"
-              style={inputStyle}
+              style={iStyle}
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
@@ -102,10 +125,10 @@ export function AuthPage() {
             />
           </div>
           <div>
-            <label style={labelStyle}>Password</label>
+            <label style={lStyle}>Password</label>
             <input
               type="password"
-              style={inputStyle}
+              style={iStyle}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
@@ -132,10 +155,10 @@ export function AuthPage() {
             disabled={loading}
             style={{
               padding: '12px 0',
-              background: '#0f3460',
+              background: colors.btnPrimary,
               border: 'none',
               borderRadius: 8,
-              color: '#e0e0ff',
+              color: '#fff',
               fontSize: 15,
               fontWeight: 600,
               cursor: loading ? 'wait' : 'pointer',
@@ -149,24 +172,3 @@ export function AuthPage() {
     </div>
   );
 }
-
-const labelStyle: React.CSSProperties = {
-  display: 'block',
-  color: '#8888aa',
-  fontSize: 11,
-  marginBottom: 4,
-  fontWeight: 600,
-  textTransform: 'uppercase',
-  letterSpacing: 0.5,
-};
-
-const inputStyle: React.CSSProperties = {
-  width: '100%',
-  padding: '10px 12px',
-  background: '#0d1117',
-  border: '1px solid #333',
-  borderRadius: 8,
-  color: '#e0e0ff',
-  fontSize: 14,
-  outline: 'none',
-};

@@ -1,6 +1,7 @@
 import React, { useRef, useEffect, useCallback, useState } from 'react';
 import { useChartStore, getZoomConfig } from '../store/chartStore';
 import { useTaskStore, TaskCard } from '../store/taskStore';
+import { useThemeStore } from '../store/themeStore';
 import { dateToX, xToDate, generateTimelineUnits, generateSubHeaders } from '../utils/date';
 import { TaskCardComponent } from './TaskCard';
 import { TaskModal } from './TaskModal';
@@ -23,6 +24,7 @@ export function GanttChart() {
 
   const { tasks, modalTaskId, setModalTask, createTask, selectedTaskId, setSelectedTask } = useTaskStore();
   const currentProject = useProjectStore((s) => s.currentProject);
+  const colors = useThemeStore((s) => s.colors);
   const zoom = getZoomConfig(zoomLevel);
 
   // Resize observer
@@ -130,8 +132,8 @@ export function GanttChart() {
         left: 0,
         right: 0,
         height: 24,
-        background: '#1a1a2e',
-        borderBottom: '1px solid #333',
+        background: colors.bgSecondary,
+        borderBottom: `1px solid ${colors.borderSecondary}`,
         overflow: 'hidden',
         zIndex: 10,
       }}>
@@ -146,10 +148,10 @@ export function GanttChart() {
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              color: '#8888aa',
+              color: colors.textMuted,
               fontSize: 11,
               fontWeight: 600,
-              borderRight: '1px solid #333',
+              borderRight: `1px solid ${colors.borderSecondary}`,
             }}
           >
             {unit.label}
@@ -164,8 +166,8 @@ export function GanttChart() {
         left: 0,
         right: 0,
         height: 36,
-        background: '#16213e',
-        borderBottom: '2px solid #0f3460',
+        background: colors.bgTertiary,
+        borderBottom: `2px solid ${colors.borderPrimary}`,
         overflow: 'hidden',
         zIndex: 10,
       }}>
@@ -180,10 +182,10 @@ export function GanttChart() {
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              color: '#e0e0ff',
+              color: colors.textPrimary,
               fontSize: 12,
               fontWeight: 500,
-              borderRight: '1px solid #1a2744',
+              borderRight: `1px solid ${colors.borderPrimary}`,
             }}
           >
             {unit.label}
@@ -199,7 +201,7 @@ export function GanttChart() {
         right: 0,
         bottom: 0,
         overflow: 'hidden',
-        background: '#0d1117',
+        background: colors.bgPrimary,
       }}>
         {/* Grid lines */}
         <svg
@@ -213,7 +215,7 @@ export function GanttChart() {
               y1={0}
               x2={unit.x - scrollX}
               y2={totalHeight}
-              stroke="#1c2333"
+              stroke={colors.borderGrid}
               strokeWidth={1}
             />
           ))}
@@ -225,7 +227,7 @@ export function GanttChart() {
               y1={i * ROW_HEIGHT - scrollY}
               x2={viewportWidth}
               y2={i * ROW_HEIGHT - scrollY}
-              stroke="#1c2333"
+              stroke={colors.borderGrid}
               strokeWidth={1}
             />
           ))}
@@ -282,18 +284,30 @@ export function GanttChart() {
         gap: 8,
         zIndex: 20,
       }}>
-        <button onClick={zoomIn} style={zoomBtnStyle}>+</button>
+        <button onClick={zoomIn} style={{
+          width: 36, height: 36, borderRadius: 6,
+          border: `1px solid ${colors.borderPrimary}`,
+          background: colors.zoomBg, color: colors.textPrimary,
+          fontSize: 18, cursor: 'pointer',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+        }}>+</button>
         <span style={{
-          background: 'rgba(22,33,62,0.9)',
-          color: '#e0e0ff',
+          background: colors.zoomBg,
+          color: colors.textPrimary,
           padding: '6px 12px',
           borderRadius: 6,
           fontSize: 12,
-          border: '1px solid #0f3460',
+          border: `1px solid ${colors.borderPrimary}`,
         }}>
           {zoomLevel}
         </span>
-        <button onClick={zoomOut} style={zoomBtnStyle}>−</button>
+        <button onClick={zoomOut} style={{
+          width: 36, height: 36, borderRadius: 6,
+          border: `1px solid ${colors.borderPrimary}`,
+          background: colors.zoomBg, color: colors.textPrimary,
+          fontSize: 18, cursor: 'pointer',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+        }}>−</button>
       </div>
 
       {/* Task modal */}
@@ -301,17 +315,3 @@ export function GanttChart() {
     </div>
   );
 }
-
-const zoomBtnStyle: React.CSSProperties = {
-  width: 36,
-  height: 36,
-  borderRadius: 6,
-  border: '1px solid #0f3460',
-  background: 'rgba(22,33,62,0.9)',
-  color: '#e0e0ff',
-  fontSize: 18,
-  cursor: 'pointer',
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-};

@@ -2,6 +2,7 @@ import React, { useEffect } from 'react';
 import { useAuthStore } from './store/authStore';
 import { useProjectStore } from './store/projectStore';
 import { useTaskStore } from './store/taskStore';
+import { useThemeStore } from './store/themeStore';
 import { AuthPage } from './components/AuthPage';
 import { ProjectSelector } from './components/ProjectSelector';
 import { GanttChart } from './components/GanttChart';
@@ -10,6 +11,7 @@ import { useSocket } from './hooks/useSocket';
 function AppContent() {
   const currentProject = useProjectStore((s) => s.currentProject);
   const { fetchTasks } = useTaskStore();
+  const colors = useThemeStore((s) => s.colors);
 
   // Connect socket for the current project
   useSocket(currentProject?.id ?? null);
@@ -32,9 +34,9 @@ function AppContent() {
             alignItems: 'center',
             justifyContent: 'center',
             height: '100%',
-            color: '#8888aa',
+            color: colors.textMuted,
             fontSize: 16,
-            background: '#0d1117',
+            background: colors.bgPrimary,
           }}>
             <div style={{ textAlign: 'center' }}>
               <div style={{ fontSize: 48, marginBottom: 16, opacity: 0.3 }}>📊</div>
@@ -52,6 +54,7 @@ function AppContent() {
 
 export default function App() {
   const { user, loading, checkAuth } = useAuthStore();
+  const colors = useThemeStore((s) => s.colors);
 
   useEffect(() => {
     checkAuth();
@@ -65,8 +68,8 @@ export default function App() {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        background: '#0d1117',
-        color: '#8888aa',
+        background: colors.bgPrimary,
+        color: colors.textMuted,
       }}>
         Loading...
       </div>

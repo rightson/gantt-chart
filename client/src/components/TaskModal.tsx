@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useTaskStore, TaskCard } from '../store/taskStore';
+import { useThemeStore } from '../store/themeStore';
 import { useSocket } from '../hooks/useSocket';
 import { useProjectStore } from '../store/projectStore';
 
@@ -13,6 +14,7 @@ export function TaskModal({ taskId, onClose }: Props) {
   const { updateTask, deleteTask } = useTaskStore();
   const currentProject = useProjectStore((s) => s.currentProject);
   const socketRef = useSocket(currentProject?.id ?? null);
+  const colors = useThemeStore((s) => s.colors);
 
   const [form, setForm] = useState<Partial<TaskCard>>({});
 
@@ -113,23 +115,64 @@ export function TaskModal({ taskId, onClose }: Props) {
 
   const tagsStr = (form.tags || []).join(', ');
 
+  const lStyle: React.CSSProperties = {
+    display: 'block',
+    color: colors.textMuted,
+    fontSize: 11,
+    marginBottom: 4,
+    fontWeight: 600,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  };
+
+  const iStyle: React.CSSProperties = {
+    width: '100%',
+    padding: '8px 10px',
+    background: colors.bgInput,
+    border: `1px solid ${colors.borderSecondary}`,
+    borderRadius: 6,
+    color: colors.textPrimary,
+    fontSize: 13,
+    outline: 'none',
+  };
+
+  const actBtn: React.CSSProperties = {
+    padding: '8px 18px',
+    borderRadius: 6,
+    border: 'none',
+    color: '#fff',
+    fontSize: 13,
+    cursor: 'pointer',
+    fontWeight: 500,
+  };
+
   return (
-    <div style={overlayStyle} onClick={onClose}>
-      <div style={modalStyle} onClick={(e) => e.stopPropagation()}>
+    <div style={{
+      position: 'fixed', inset: 0, background: colors.overlayBg,
+      display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000,
+    }} onClick={onClose}>
+      <div style={{
+        background: colors.bgSecondary, borderRadius: 12, padding: 28,
+        width: 560, maxWidth: '95vw', maxHeight: '90vh', overflowY: 'auto',
+        border: `1px solid ${colors.borderPrimary}`, boxShadow: colors.modalShadow,
+      }} onClick={(e) => e.stopPropagation()}>
         {/* Header */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-          <h2 style={{ color: '#e0e0ff', margin: 0, fontSize: 18 }}>
+          <h2 style={{ color: colors.textPrimary, margin: 0, fontSize: 18 }}>
             {isLocked ? '🔒 ' : ''}Edit Task
           </h2>
-          <button onClick={onClose} style={closeBtnStyle}>&times;</button>
+          <button onClick={onClose} style={{
+            background: 'none', border: 'none', color: colors.textMuted,
+            fontSize: 24, cursor: 'pointer', padding: '0 4px',
+          }}>&times;</button>
         </div>
 
         <div style={{ display: 'grid', gap: 14 }}>
           {/* Title */}
           <div>
-            <label style={labelStyle}>Title</label>
+            <label style={lStyle}>Title</label>
             <input
-              style={inputStyle}
+              style={iStyle}
               value={form.title || ''}
               onChange={(e) => handleChange('title', e.target.value)}
               disabled={isLocked}
@@ -138,9 +181,9 @@ export function TaskModal({ taskId, onClose }: Props) {
 
           {/* Description */}
           <div>
-            <label style={labelStyle}>Description</label>
+            <label style={lStyle}>Description</label>
             <textarea
-              style={{ ...inputStyle, height: 80, resize: 'vertical' }}
+              style={{ ...iStyle, height: 80, resize: 'vertical' }}
               value={form.description as string || ''}
               onChange={(e) => handleChange('description', e.target.value)}
               disabled={isLocked}
@@ -150,18 +193,18 @@ export function TaskModal({ taskId, onClose }: Props) {
           {/* Row: category, priority, status */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
             <div>
-              <label style={labelStyle}>Category</label>
+              <label style={lStyle}>Category</label>
               <input
-                style={inputStyle}
+                style={iStyle}
                 value={form.category as string || ''}
                 onChange={(e) => handleChange('category', e.target.value)}
                 disabled={isLocked}
               />
             </div>
             <div>
-              <label style={labelStyle}>Priority</label>
+              <label style={lStyle}>Priority</label>
               <select
-                style={inputStyle}
+                style={iStyle}
                 value={form.priority || 'medium'}
                 onChange={(e) => handleChange('priority', e.target.value)}
                 disabled={isLocked}
@@ -173,9 +216,9 @@ export function TaskModal({ taskId, onClose }: Props) {
               </select>
             </div>
             <div>
-              <label style={labelStyle}>Status</label>
+              <label style={lStyle}>Status</label>
               <select
-                style={inputStyle}
+                style={iStyle}
                 value={form.status || 'todo'}
                 onChange={(e) => handleChange('status', e.target.value)}
                 disabled={isLocked}
@@ -189,9 +232,9 @@ export function TaskModal({ taskId, onClose }: Props) {
 
           {/* Tags */}
           <div>
-            <label style={labelStyle}>Tags (comma-separated)</label>
+            <label style={lStyle}>Tags (comma-separated)</label>
             <input
-              style={inputStyle}
+              style={iStyle}
               value={tagsStr}
               onChange={(e) => handleChange('tags', e.target.value.split(',').map(s => s.trim()).filter(Boolean))}
               disabled={isLocked}
@@ -201,30 +244,30 @@ export function TaskModal({ taskId, onClose }: Props) {
           {/* Dates */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
             <div>
-              <label style={labelStyle}>Start Date</label>
+              <label style={lStyle}>Start Date</label>
               <input
                 type="date"
-                style={inputStyle}
+                style={iStyle}
                 value={form.startDate as string || ''}
                 onChange={(e) => handleChange('startDate', e.target.value)}
                 disabled={isLocked}
               />
             </div>
             <div>
-              <label style={labelStyle}>Due Date</label>
+              <label style={lStyle}>Due Date</label>
               <input
                 type="date"
-                style={inputStyle}
+                style={iStyle}
                 value={form.dueDate as string || ''}
                 onChange={(e) => handleChange('dueDate', e.target.value)}
                 disabled={isLocked}
               />
             </div>
             <div>
-              <label style={labelStyle}>ETA</label>
+              <label style={lStyle}>ETA</label>
               <input
                 type="date"
-                style={inputStyle}
+                style={iStyle}
                 value={form.etaDate as string || ''}
                 onChange={(e) => handleChange('etaDate', e.target.value)}
                 disabled={isLocked}
@@ -234,7 +277,7 @@ export function TaskModal({ taskId, onClose }: Props) {
 
           {/* Color */}
           <div>
-            <label style={labelStyle}>Color</label>
+            <label style={lStyle}>Color</label>
             <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
               <input
                 type="color"
@@ -265,20 +308,20 @@ export function TaskModal({ taskId, onClose }: Props) {
         <div style={{ display: 'flex', gap: 10, marginTop: 20, justifyContent: 'space-between' }}>
           <div style={{ display: 'flex', gap: 10 }}>
             <button onClick={handleLockToggle} style={{
-              ...actionBtnStyle,
+              ...actBtn,
               background: task.isLocked ? '#2d6a4f' : '#e76f51',
             }}>
               {task.isLocked ? 'Unlock' : 'Lock'}
             </button>
-            <button onClick={handleDelete} style={{ ...actionBtnStyle, background: '#e94560' }}>
+            <button onClick={handleDelete} style={{ ...actBtn, background: '#e94560' }}>
               Delete
             </button>
           </div>
           <div style={{ display: 'flex', gap: 10 }}>
-            <button onClick={onClose} style={{ ...actionBtnStyle, background: '#333' }}>
+            <button onClick={onClose} style={{ ...actBtn, background: colors.btnSecondary, color: colors.textPrimary }}>
               Cancel
             </button>
-            <button onClick={handleSave} style={{ ...actionBtnStyle, background: '#0f3460' }} disabled={isLocked}>
+            <button onClick={handleSave} style={{ ...actBtn, background: colors.btnPrimary }} disabled={isLocked}>
               Save
             </button>
           </div>
@@ -287,65 +330,3 @@ export function TaskModal({ taskId, onClose }: Props) {
     </div>
   );
 }
-
-const overlayStyle: React.CSSProperties = {
-  position: 'fixed',
-  inset: 0,
-  background: 'rgba(0,0,0,0.6)',
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  zIndex: 1000,
-};
-
-const modalStyle: React.CSSProperties = {
-  background: '#1a1a2e',
-  borderRadius: 12,
-  padding: 28,
-  width: 560,
-  maxWidth: '95vw',
-  maxHeight: '90vh',
-  overflowY: 'auto',
-  border: '1px solid #0f3460',
-  boxShadow: '0 20px 60px rgba(0,0,0,0.5)',
-};
-
-const labelStyle: React.CSSProperties = {
-  display: 'block',
-  color: '#8888aa',
-  fontSize: 11,
-  marginBottom: 4,
-  fontWeight: 600,
-  textTransform: 'uppercase',
-  letterSpacing: 0.5,
-};
-
-const inputStyle: React.CSSProperties = {
-  width: '100%',
-  padding: '8px 10px',
-  background: '#0d1117',
-  border: '1px solid #333',
-  borderRadius: 6,
-  color: '#e0e0ff',
-  fontSize: 13,
-  outline: 'none',
-};
-
-const closeBtnStyle: React.CSSProperties = {
-  background: 'none',
-  border: 'none',
-  color: '#888',
-  fontSize: 24,
-  cursor: 'pointer',
-  padding: '0 4px',
-};
-
-const actionBtnStyle: React.CSSProperties = {
-  padding: '8px 18px',
-  borderRadius: 6,
-  border: 'none',
-  color: '#fff',
-  fontSize: 13,
-  cursor: 'pointer',
-  fontWeight: 500,
-};
