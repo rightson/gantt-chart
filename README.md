@@ -21,9 +21,8 @@ A real-time collaborative Gantt chart web application.
 # Install dependencies
 npm install
 
-# Set environment variables (optional, defaults shown)
-export DATABASE_URL="postgres://localhost:5432/gantt"
-export JWT_SECRET="your-secret-key"
+# Configure environment (copy and edit as needed)
+cp server/.env.example server/.env
 
 # Run database migration
 cd server && npm run db:migrate
@@ -31,6 +30,16 @@ cd server && npm run db:migrate
 # Start development servers (client on :5173, server on :3001)
 npm run dev
 ```
+
+## Environment Variables
+
+Configure via `server/.env` (loaded automatically with dotenv):
+
+| Variable | Default | Description |
+|---|---|---|
+| `DATABASE_URL` | `postgres://localhost:5432/gantt` | PostgreSQL connection string |
+| `JWT_SECRET` | `gantt-chart-secret-change-in-production` | Secret for signing JWT tokens |
+| `PORT` | `3001` | Server listen port |
 
 ## Scripts
 
