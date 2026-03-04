@@ -1,11 +1,8 @@
-import { Router } from 'express';
+import { FastifyInstance } from 'fastify';
 import { v4 as uuid } from 'uuid';
 import { eq } from 'drizzle-orm';
 import { db, schema } from '../db/index.js';
-import { authMiddleware } from '../middleware/auth.js';
-
-const router = Router();
-router.use(authMiddleware);
+import { authHook } from '../middleware/auth.js';
 
 function serializeTask(task: any) {
   return {
@@ -16,94 +13,97 @@ function serializeTask(task: any) {
   };
 }
 
-router.get('/project/:projectId', (req, res) => {
-  const tasks = db.select().from(schema.tasks)
-    .where(eq(schema.tasks.projectId, req.params.projectId))
-    .all();
-  res.json(tasks.map(serializeTask));
-});
+export default async function taskRoutes(app: FastifyInstance) {
+  app.addHook('onRequest', authHook);
 
-router.post('/', (req, res) => {
-  const {
-    projectId, title, description, category, tags, ownerId,
-    memberIds, startDate, dueDate, etaDate, priority, row, color,
-  } = req.body;
+  app.get('/project/:projectId', async (request) => {
+    const { projectId } = request.params as any;
+    const tasks = db.select().from(schema.tasks)
+      .where(eq(schema.tasks.projectId, projectId))
+      .all();
+    return tasks.map(serializeTask);
+  });
 
-  const id = uuid();
-  const now = new Date().toISOString();
+  app.post('/', async (request, reply) => {
+    const {
+      projectId, title, description, category, tags, ownerId,
+      memberIds, startDate, dueDate, etaDate, priority, row, color,
+    } = request.body as any;
 
-  db.insert(schema.tasks).values({
-    id,
-    projectId,
-    title: title || 'Untitled Task',
-    description,
-    category,
-    tags: JSON.stringify(tags || []),
-    ownerId: ownerId || req.user!.userId,
-    memberIds: JSON.stringify(memberIds || []),
-    startDate,
-    dueDate,
-    etaDate,
-    priority: priority || 'medium',
-    row: row ?? 0,
-    color,
-    createdAt: now,
-    updatedAt: now,
-  }).run();
+    const id = uuid();
+    const now = new Date().toISOString();
 
-  const task = db.select().from(schema.tasks).where(eq(schema.tasks.id, id)).get();
-  res.status(201).json(serializeTask(task));
-});
+    db.insert(schema.tasks).values({
+      id,
+      projectId,
+      title: title || 'Untitled Task',
+      description,
+      category,
+      tags: JSON.stringify(tags || []),
+      ownerId: ownerId || request.user!.userId,
+      memberIds: JSON.stringify(memberIds || []),
+      startDate,
+      dueDate,
+      etaDate,
+      priority: priority || 'medium',
+      row: row ?? 0,
+      color,
+      createdAt: now,
+      updatedAt: now,
+    }).run();
 
-router.patch('/:id', (req, res) => {
-  const existing = db.select().from(schema.tasks).where(eq(schema.tasks.id, req.params.id)).get();
-  if (!existing) {
-    res.status(404).json({ error: 'Task not found' });
-    return;
-  }
-  if (existing.isLocked) {
-    res.status(403).json({ error: 'Task is locked' });
-    return;
-  }
+    const task = db.select().from(schema.tasks).where(eq(schema.tasks.id, id)).get();
+    reply.code(201);
+    return serializeTask(task);
+  });
 
-  const updates: Record<string, any> = { updatedAt: new Date().toISOString() };
-  const allowed = [
-    'title', 'description', 'category', 'ownerId',
-    'startDate', 'dueDate', 'etaDate', 'priority', 'status', 'row', 'color',
-  ];
-
-  for (const key of allowed) {
-    if (req.body[key] !== undefined) {
-      // Map camelCase to snake_case for db columns
-      const dbKey = key.replace(/([A-Z])/g, '_$1').toLowerCase();
-      updates[dbKey] = req.body[key];
+  app.patch('/:id', async (request, reply) => {
+    const { id } = request.params as any;
+    const existing = db.select().from(schema.tasks).where(eq(schema.tasks.id, id)).get();
+    if (!existing) {
+      return reply.code(404).send({ error: 'Task not found' });
     }
-  }
+    if (existing.isLocked) {
+      return reply.code(403).send({ error: 'Task is locked' });
+    }
 
-  if (req.body.tags !== undefined) {
-    updates.tags = JSON.stringify(req.body.tags);
-  }
-  if (req.body.memberIds !== undefined) {
-    updates.member_ids = JSON.stringify(req.body.memberIds);
-  }
-  if (req.body.isLocked !== undefined) {
-    updates.is_locked = req.body.isLocked ? 1 : 0;
-  }
+    const body = request.body as any;
+    const updates: Record<string, any> = { updatedAt: new Date().toISOString() };
+    const allowed = [
+      'title', 'description', 'category', 'ownerId',
+      'startDate', 'dueDate', 'etaDate', 'priority', 'status', 'row', 'color',
+    ];
 
-  db.update(schema.tasks).set(updates).where(eq(schema.tasks.id, req.params.id)).run();
+    for (const key of allowed) {
+      if (body[key] !== undefined) {
+        const dbKey = key.replace(/([A-Z])/g, '_$1').toLowerCase();
+        updates[dbKey] = body[key];
+      }
+    }
 
-  const task = db.select().from(schema.tasks).where(eq(schema.tasks.id, req.params.id)).get();
-  res.json(serializeTask(task));
-});
+    if (body.tags !== undefined) {
+      updates.tags = JSON.stringify(body.tags);
+    }
+    if (body.memberIds !== undefined) {
+      updates.member_ids = JSON.stringify(body.memberIds);
+    }
+    if (body.isLocked !== undefined) {
+      updates.is_locked = body.isLocked ? 1 : 0;
+    }
 
-router.delete('/:id', (req, res) => {
-  const existing = db.select().from(schema.tasks).where(eq(schema.tasks.id, req.params.id)).get();
-  if (!existing) {
-    res.status(404).json({ error: 'Task not found' });
-    return;
-  }
-  db.delete(schema.tasks).where(eq(schema.tasks.id, req.params.id)).run();
-  res.json({ message: 'Task deleted' });
-});
+    db.update(schema.tasks).set(updates).where(eq(schema.tasks.id, id)).run();
 
-export default router;
+    const task = db.select().from(schema.tasks).where(eq(schema.tasks.id, id)).get();
+    return serializeTask(task);
+  });
+
+  app.delete('/:id', async (request, reply) => {
+    const { id } = request.params as any;
+    const existing = db.select().from(schema.tasks).where(eq(schema.tasks.id, id)).get();
+    if (!existing) {
+      return reply.code(404).send({ error: 'Task not found' });
+    }
+    db.delete(schema.tasks).where(eq(schema.tasks.id, id)).run();
+    return { message: 'Task deleted' };
+  });
+}

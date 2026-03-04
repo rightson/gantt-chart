@@ -1,12 +1,10 @@
-import { Router } from 'express';
+import { FastifyInstance } from 'fastify';
 import bcrypt from 'bcryptjs';
 import { v4 as uuid } from 'uuid';
 import { eq } from 'drizzle-orm';
 import { db, schema } from '../db/index.js';
-import { signToken, authMiddleware } from '../middleware/auth.js';
+import { signToken, authHook } from '../middleware/auth.js';
 import { z } from 'zod';
-
-const router = Router();
 
 const registerSchema = z.object({
   email: z.string().email(),
@@ -19,78 +17,72 @@ const loginSchema = z.object({
   password: z.string(),
 });
 
-router.post('/register', async (req, res) => {
-  try {
-    const body = registerSchema.parse(req.body);
+export default async function authRoutes(app: FastifyInstance) {
+  app.post('/register', async (request, reply) => {
+    try {
+      const body = registerSchema.parse(request.body);
 
-    const existing = db.select().from(schema.users).where(eq(schema.users.email, body.email)).get();
-    if (existing) {
-      res.status(409).json({ error: 'Email already registered' });
-      return;
+      const existing = db.select().from(schema.users).where(eq(schema.users.email, body.email)).get();
+      if (existing) {
+        return reply.code(409).send({ error: 'Email already registered' });
+      }
+
+      const id = uuid();
+      const passwordHash = await bcrypt.hash(body.password, 10);
+      const now = new Date().toISOString();
+
+      db.insert(schema.users).values({
+        id,
+        email: body.email,
+        name: body.name,
+        passwordHash,
+        createdAt: now,
+      }).run();
+
+      const token = signToken({ userId: id, email: body.email });
+      return { token, user: { id, email: body.email, name: body.name, createdAt: now } };
+    } catch (err) {
+      if (err instanceof z.ZodError) {
+        return reply.code(400).send({ error: err.errors });
+      }
+      request.log.error(err);
+      return reply.code(500).send({ error: 'Internal server error' });
     }
+  });
 
-    const id = uuid();
-    const passwordHash = await bcrypt.hash(body.password, 10);
-    const now = new Date().toISOString();
+  app.post('/login', async (request, reply) => {
+    try {
+      const body = loginSchema.parse(request.body);
 
-    db.insert(schema.users).values({
-      id,
-      email: body.email,
-      name: body.name,
-      passwordHash,
-      createdAt: now,
-    }).run();
+      const user = db.select().from(schema.users).where(eq(schema.users.email, body.email)).get();
+      if (!user) {
+        return reply.code(401).send({ error: 'Invalid credentials' });
+      }
 
-    const token = signToken({ userId: id, email: body.email });
-    res.json({ token, user: { id, email: body.email, name: body.name, createdAt: now } });
-  } catch (err) {
-    if (err instanceof z.ZodError) {
-      res.status(400).json({ error: err.errors });
-      return;
+      const valid = await bcrypt.compare(body.password, user.passwordHash);
+      if (!valid) {
+        return reply.code(401).send({ error: 'Invalid credentials' });
+      }
+
+      const token = signToken({ userId: user.id, email: user.email });
+      return {
+        token,
+        user: { id: user.id, email: user.email, name: user.name, createdAt: user.createdAt },
+      };
+    } catch (err) {
+      if (err instanceof z.ZodError) {
+        return reply.code(400).send({ error: err.errors });
+      }
+      request.log.error(err);
+      return reply.code(500).send({ error: 'Internal server error' });
     }
-    console.error(err);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
+  });
 
-router.post('/login', async (req, res) => {
-  try {
-    const body = loginSchema.parse(req.body);
-
-    const user = db.select().from(schema.users).where(eq(schema.users.email, body.email)).get();
+  app.get('/me', { onRequest: authHook }, async (request, reply) => {
+    const user = db.select().from(schema.users).where(eq(schema.users.id, request.user!.userId)).get();
     if (!user) {
-      res.status(401).json({ error: 'Invalid credentials' });
-      return;
+      return reply.code(404).send({ error: 'User not found' });
     }
-
-    const valid = await bcrypt.compare(body.password, user.passwordHash);
-    if (!valid) {
-      res.status(401).json({ error: 'Invalid credentials' });
-      return;
-    }
-
-    const token = signToken({ userId: user.id, email: user.email });
-    res.json({
-      token,
-      user: { id: user.id, email: user.email, name: user.name, createdAt: user.createdAt },
-    });
-  } catch (err) {
-    if (err instanceof z.ZodError) {
-      res.status(400).json({ error: err.errors });
-      return;
-    }
-    console.error(err);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-router.get('/me', authMiddleware, (req, res) => {
-  const user = db.select().from(schema.users).where(eq(schema.users.id, req.user!.userId)).get();
-  if (!user) {
-    res.status(404).json({ error: 'User not found' });
-    return;
-  }
-  res.json({ id: user.id, email: user.email, name: user.name, createdAt: user.createdAt });
-});
-
-export default router;
+    return { id: user.id, email: user.email, name: user.name, createdAt: user.createdAt };
+  });
+}

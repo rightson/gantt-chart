@@ -1,4 +1,4 @@
-import { Request, Response, NextFunction } from 'express';
+import { FastifyRequest, FastifyReply } from 'fastify';
 import jwt from 'jsonwebtoken';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'gantt-chart-secret-change-in-production';
@@ -8,11 +8,9 @@ export interface AuthPayload {
   email: string;
 }
 
-declare global {
-  namespace Express {
-    interface Request {
-      user?: AuthPayload;
-    }
+declare module 'fastify' {
+  interface FastifyRequest {
+    user?: AuthPayload;
   }
 }
 
@@ -24,17 +22,16 @@ export function verifyToken(token: string): AuthPayload {
   return jwt.verify(token, JWT_SECRET) as AuthPayload;
 }
 
-export function authMiddleware(req: Request, res: Response, next: NextFunction): void {
-  const header = req.headers.authorization;
+export async function authHook(request: FastifyRequest, reply: FastifyReply) {
+  const header = request.headers.authorization;
   if (!header?.startsWith('Bearer ')) {
-    res.status(401).json({ error: 'No token provided' });
+    reply.code(401).send({ error: 'No token provided' });
     return;
   }
 
   try {
-    req.user = verifyToken(header.slice(7));
-    next();
+    request.user = verifyToken(header.slice(7));
   } catch {
-    res.status(401).json({ error: 'Invalid token' });
+    reply.code(401).send({ error: 'Invalid token' });
   }
 }

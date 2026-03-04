@@ -1,10 +1,9 @@
-import { Server as HttpServer } from 'http';
 import { Server, Socket } from 'socket.io';
 import { verifyToken } from '../middleware/auth.js';
 import { eq } from 'drizzle-orm';
 import { db, schema } from '../db/index.js';
 
-export function setupWebSocket(httpServer: HttpServer) {
+export function setupWebSocket(httpServer: any) {
   const io = new Server(httpServer, {
     cors: {
       origin: '*',

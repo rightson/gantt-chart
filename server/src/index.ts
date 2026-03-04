@@ -1,6 +1,5 @@
-import express from 'express';
-import cors from 'cors';
-import { createServer } from 'http';
+import Fastify from 'fastify';
+import cors from '@fastify/cors';
 import authRoutes from './routes/auth.js';
 import projectRoutes from './routes/projects.js';
 import taskRoutes from './routes/tasks.js';
@@ -9,26 +8,25 @@ import { setupWebSocket } from './ws/index.js';
 // Run migration on startup
 import './db/migrate.js';
 
-const app = express();
-const httpServer = createServer(app);
+const app = Fastify({ logger: true });
 
-app.use(cors());
-app.use(express.json());
+await app.register(cors);
 
 // Routes
-app.use('/api/auth', authRoutes);
-app.use('/api/projects', projectRoutes);
-app.use('/api/tasks', taskRoutes);
+app.register(authRoutes, { prefix: '/api/auth' });
+app.register(projectRoutes, { prefix: '/api/projects' });
+app.register(taskRoutes, { prefix: '/api/tasks' });
 
 // Health check
-app.get('/api/health', (_req, res) => {
-  res.json({ status: 'ok' });
+app.get('/api/health', async () => {
+  return { status: 'ok' };
 });
 
-// WebSocket
-setupWebSocket(httpServer);
+const PORT = Number(process.env.PORT) || 3001;
 
-const PORT = process.env.PORT || 3001;
-httpServer.listen(PORT, () => {
-  console.log(`Server running on http://localhost:${PORT}`);
-});
+// Setup WebSocket on the underlying Node HTTP server before listening
+await app.ready();
+setupWebSocket(app.server);
+
+await app.listen({ port: PORT, host: '0.0.0.0' });
+console.log(`Server running on http://localhost:${PORT}`);

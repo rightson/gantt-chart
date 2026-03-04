@@ -19,11 +19,12 @@ No test runner or linter is currently configured.
 
 **Monorepo** with three npm workspaces: `client/`, `server/`, `shared/`.
 
-### Server (Express + TypeScript)
+### Server (Fastify + TypeScript)
+- **Framework**: Fastify 5 with `@fastify/cors`. Routes registered as async Fastify plugins with `app.register()` and prefix options.
 - **Database**: SQLite via better-sqlite3 + Drizzle ORM. Schema in `server/src/db/schema.ts`, auto-migration in `server/src/db/migrate.ts` (runs on startup). DB file: `gantt.db`.
-- **Auth**: JWT (7-day expiry, secret from `JWT_SECRET` env var). Passwords hashed with bcryptjs. Middleware in `server/src/middleware/auth.ts` attaches `req.user` with `{ userId, email }`.
-- **REST API**: All routes under `/api`. Auth routes (`/api/auth/*`) are public; project and task routes require JWT Bearer token.
-- **WebSocket**: Socket.IO in `server/src/ws/index.ts`. JWT verified on connection. Room-based: clients join `project:{id}` rooms. Handles `task:created/updated/deleted` and `cursor:move` events. Task updates are persisted to DB in the WebSocket handler.
+- **Auth**: JWT (7-day expiry, secret from `JWT_SECRET` env var). Passwords hashed with bcryptjs. Auth hook in `server/src/middleware/auth.ts` attaches `request.user` with `{ userId, email }`. Applied per-route via `onRequest` hook (not global middleware).
+- **REST API**: All routes under `/api`. Auth routes (`/api/auth/*`) are public; project and task routes apply `authHook` via `addHook('onRequest', authHook)`.
+- **WebSocket**: Socket.IO in `server/src/ws/index.ts`, attached to `app.server` after `app.ready()`. JWT verified on connection. Room-based: clients join `project:{id}` rooms. Handles `task:created/updated/deleted` and `cursor:move` events. Task updates are persisted to DB in the WebSocket handler.
 
 ### Client (React 19 + Vite)
 - **State**: Zustand stores in `client/src/store/` — `authStore` (JWT + user), `projectStore` (project list/selection), `taskStore` (task CRUD + remote sync), `chartStore` (scroll/zoom state).
