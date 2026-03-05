@@ -101,7 +101,7 @@ export function TaskModal({ taskId, onClose }: Props) {
   };
 
   const handleDelete = async () => {
-    if (confirm('Delete this task?')) {
+    if (confirm('Move this task to trash?')) {
       await deleteTask(task.id);
       if (socketRef.current && currentProject) {
         socketRef.current.emit('task:deleted', {

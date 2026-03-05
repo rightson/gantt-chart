@@ -33,6 +33,7 @@ export interface TaskCard {
   color?: string;
   createdAt: string;
   updatedAt: string;
+  deletedAt?: string | null;
 }
 
 // WebSocket event types
