@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { ZoomLevel, ZOOM_LEVELS, getNextZoomIn, getNextZoomOut } from '../utils/date';
+import { ZoomLevel, ZoomConfig, ZOOM_LEVELS, getNextZoomIn, getNextZoomOut } from '../utils/date';
 
 interface ChartState {
   scrollX: number;
@@ -11,6 +11,7 @@ interface ChartState {
   setScroll: (x: number, y: number) => void;
   setScrollX: (x: number) => void;
   setScrollY: (y: number) => void;
+  setZoomLevel: (level: ZoomLevel) => void;
   zoomIn: () => void;
   zoomOut: () => void;
   setViewport: (width: number, height: number) => void;
@@ -28,12 +29,18 @@ export const useChartStore = create<ChartState>((set, get) => ({
   setScrollX: (x) => set({ scrollX: x }),
   setScrollY: (y) => set({ scrollY: y }),
 
+  setZoomLevel: (level) => set({ zoomLevel: level }),
   zoomIn: () => set((s) => ({ zoomLevel: getNextZoomIn(s.zoomLevel) })),
   zoomOut: () => set((s) => ({ zoomLevel: getNextZoomOut(s.zoomLevel) })),
 
   setViewport: (width, height) => set({ viewportWidth: width, viewportHeight: height }),
 }));
 
-export function getZoomConfig(level: ZoomLevel) {
-  return ZOOM_LEVELS[level];
+export function getZoomConfig(level: ZoomLevel, viewportWidth?: number): ZoomConfig {
+  const config = ZOOM_LEVELS[level];
+  // For 'day' level, dynamically size columns to fit ~7 days on screen
+  if (level === 'day' && viewportWidth && viewportWidth > 0) {
+    return { ...config, unitWidth: Math.floor(viewportWidth / 7) };
+  }
+  return config;
 }

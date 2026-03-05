@@ -17,13 +17,26 @@ export function ProjectSelector() {
   const [newName, setNewName] = useState('');
 
   useEffect(() => {
-    fetchProjects();
-  }, [fetchProjects]);
+    fetchProjects().then(() => {
+      // On load, restore project from URL
+      const params = new URLSearchParams(window.location.search);
+      const projectId = params.get('project');
+      if (projectId) {
+        const { projects } = useProjectStore.getState();
+        const p = projects.find(p => p.id === projectId);
+        if (p) setCurrentProject(p);
+      }
+    });
+  }, [fetchProjects, setCurrentProject]);
 
   const handleCreate = async () => {
     if (!newName.trim()) return;
     const p = await createProject(newName.trim());
     setCurrentProject(p);
+    // Update URL with new project
+    const url = new URL(window.location.href);
+    url.searchParams.set('project', p.id);
+    window.history.replaceState({}, '', url.toString());
     setShowCreate(false);
     setNewName('');
   };
@@ -77,6 +90,14 @@ export function ProjectSelector() {
         onChange={(e) => {
           const p = projects.find(p => p.id === e.target.value);
           setCurrentProject(p || null);
+          // Update URL
+          const url = new URL(window.location.href);
+          if (p) {
+            url.searchParams.set('project', p.id);
+          } else {
+            url.searchParams.delete('project');
+          }
+          window.history.replaceState({}, '', url.toString());
         }}
       >
         <option value="">Select project...</option>
