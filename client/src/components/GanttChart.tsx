@@ -25,7 +25,7 @@ export function GanttChart() {
   const { tasks, modalTaskId, setModalTask, createTask, selectedTaskId, setSelectedTask } = useTaskStore();
   const currentProject = useProjectStore((s) => s.currentProject);
   const colors = useThemeStore((s) => s.colors);
-  const zoom = getZoomConfig(zoomLevel);
+  const zoom = getZoomConfig(zoomLevel, viewportWidth);
 
   // Resize observer
   useEffect(() => {
@@ -137,26 +137,44 @@ export function GanttChart() {
         overflow: 'hidden',
         zIndex: 10,
       }}>
-        {subHeaders.map((unit, i) => (
-          <div
-            key={i}
-            style={{
-              position: 'absolute',
-              left: unit.x - scrollX,
-              width: unit.width,
-              height: 24,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: colors.textMuted,
-              fontSize: 11,
-              fontWeight: 600,
-              borderRight: `1px solid ${colors.borderSecondary}`,
-            }}
-          >
-            {unit.label}
-          </div>
-        ))}
+        {subHeaders.map((unit, i) => {
+          const unitLeft = unit.x - scrollX;
+          const unitRight = unitLeft + unit.width;
+          // Clamp the label to the visible portion of the sub-header
+          const visibleLeft = Math.max(unitLeft, 0);
+          const visibleRight = Math.min(unitRight, viewportWidth);
+          const visibleWidth = Math.max(visibleRight - visibleLeft, 0);
+
+          return (
+            <div
+              key={i}
+              style={{
+                position: 'absolute',
+                left: unitLeft,
+                width: unit.width,
+                height: 24,
+                borderRight: `1px solid ${colors.borderSecondary}`,
+              }}
+            >
+              <div
+                style={{
+                  position: 'absolute',
+                  left: visibleLeft - unitLeft,
+                  width: visibleWidth,
+                  height: 24,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: colors.textMuted,
+                  fontSize: 11,
+                  fontWeight: 600,
+                }}
+              >
+                {visibleWidth > 40 ? unit.label : ''}
+              </div>
+            </div>
+          );
+        })}
       </div>
 
       {/* Main header (time units) */}
