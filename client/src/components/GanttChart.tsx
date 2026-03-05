@@ -39,15 +39,20 @@ export function GanttChart() {
     return () => observer.disconnect();
   }, [setViewport]);
 
-  // Native wheel handler to properly preventDefault for Ctrl+scroll
+  // Capture wheel at document level to intercept Ctrl+scroll before the browser
+  // handles it as native zoom. Must use capture phase + non-passive to preventDefault.
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
 
     const handleNativeWheel = (e: WheelEvent) => {
+      // Only handle events when mouse is over the Gantt container
+      if (!el.contains(e.target as Node)) return;
+
       if (e.ctrlKey || e.metaKey) {
         // Ctrl/Cmd + scroll: zoom in/out (prevent browser zoom)
         e.preventDefault();
+        e.stopPropagation();
         const { scrollX, zoomLevel, viewportWidth, origin } = useChartStore.getState();
         const currentZoom = getZoomConfig(zoomLevel, viewportWidth);
 
@@ -61,10 +66,10 @@ export function GanttChart() {
         const currentIdx = ZOOM_ORDER.indexOf(zoomLevel);
         let newLevel: ZoomLevel;
         if (e.deltaY < 0) {
-          // Zoom in
+          // Zoom in (finer granularity)
           newLevel = currentIdx > 0 ? ZOOM_ORDER[currentIdx - 1] : zoomLevel;
         } else {
-          // Zoom out
+          // Zoom out (coarser granularity)
           newLevel = currentIdx < ZOOM_ORDER.length - 1 ? ZOOM_ORDER[currentIdx + 1] : zoomLevel;
         }
 
@@ -85,6 +90,7 @@ export function GanttChart() {
         useChartStore.setState({ scrollX: scrollX + delta });
       } else {
         // Normal scroll: vertical + horizontal
+        e.preventDefault();
         const { scrollX, scrollY } = useChartStore.getState();
         useChartStore.setState({
           scrollX: scrollX + e.deltaX,
@@ -93,8 +99,10 @@ export function GanttChart() {
       }
     };
 
-    el.addEventListener('wheel', handleNativeWheel, { passive: false });
-    return () => el.removeEventListener('wheel', handleNativeWheel);
+    // Listen on document in capture phase so we intercept before the browser's
+    // built-in Ctrl+wheel zoom handler processes the event.
+    document.addEventListener('wheel', handleNativeWheel, { passive: false, capture: true });
+    return () => document.removeEventListener('wheel', handleNativeWheel, { capture: true });
   }, []);
 
   // Pan dragging
