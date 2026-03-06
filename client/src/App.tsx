@@ -7,11 +7,15 @@ import { AuthPage } from './components/AuthPage';
 import { ProjectSelector } from './components/ProjectSelector';
 import { GanttChart } from './components/GanttChart';
 import { useSocket } from './hooks/useSocket';
+import { useUrlState } from './hooks/useUrlState';
 
 function AppContent() {
   const currentProject = useProjectStore((s) => s.currentProject);
   const { fetchTasks } = useTaskStore();
   const colors = useThemeStore((s) => s.colors);
+
+  // Sync URL ↔ chart/project state
+  useUrlState();
 
   // Connect socket for the current project
   useSocket(currentProject?.id ?? null);
