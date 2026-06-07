@@ -4,7 +4,7 @@ import {
   addHours, differenceInMinutes,
 } from 'date-fns';
 
-export type ZoomLevel = 'halfhour' | 'hour' | 'day' | 'week' | 'month' | 'quarter' | 'halfyear' | 'year' | 'multiyear';
+export type ZoomLevel = 'halfhour' | 'hour' | 'day' | '7day' | 'week' | 'month' | 'quarter' | 'halfyear' | 'year' | 'multiyear';
 
 export interface ZoomConfig {
   level: ZoomLevel;
@@ -18,6 +18,7 @@ export const ZOOM_LEVELS: Record<ZoomLevel, ZoomConfig> = {
   halfhour:  { level: 'halfhour',  unitWidth: 60,  headerFormat: 'HH:mm', subHeaderFormat: 'MMM d' },
   hour:      { level: 'hour',      unitWidth: 60,  headerFormat: 'HH:00', subHeaderFormat: 'MMM d' },
   day:       { level: 'day',       unitWidth: 120, headerFormat: 'd',     subHeaderFormat: 'MMM yyyy' },
+  '7day':    { level: '7day',     unitWidth: 200, headerFormat: 'EEE d', subHeaderFormat: 'MMM yyyy' },
   week:      { level: 'week',      unitWidth: 100, headerFormat: "'W'w",  subHeaderFormat: 'MMM yyyy' },
   month:     { level: 'month',     unitWidth: 120, headerFormat: 'MMM',   subHeaderFormat: 'yyyy' },
   quarter:   { level: 'quarter',   unitWidth: 100, headerFormat: "'Q'Q",  subHeaderFormat: 'yyyy' },
@@ -26,7 +27,7 @@ export const ZOOM_LEVELS: Record<ZoomLevel, ZoomConfig> = {
   multiyear: { level: 'multiyear', unitWidth: 60,  headerFormat: 'yyyy' },
 };
 
-const ZOOM_ORDER: ZoomLevel[] = ['halfhour', 'hour', 'day', 'week', 'month', 'quarter', 'halfyear', 'year', 'multiyear'];
+const ZOOM_ORDER: ZoomLevel[] = ['halfhour', 'hour', 'day', '7day', 'week', 'month', 'quarter', 'halfyear', 'year', 'multiyear'];
 
 export function getNextZoomIn(current: ZoomLevel): ZoomLevel {
   const idx = ZOOM_ORDER.indexOf(current);
@@ -45,6 +46,7 @@ export function dateToX(date: Date, origin: Date, zoom: ZoomConfig): number {
     case 'hour':
       return (differenceInMinutes(date, origin) / 60) * zoom.unitWidth;
     case 'day':
+    case '7day':
       return differenceInDays(date, origin) * zoom.unitWidth;
     case 'week':
       return (differenceInDays(date, origin) / 7) * zoom.unitWidth;
@@ -68,6 +70,7 @@ export function xToDate(x: number, origin: Date, zoom: ZoomConfig): Date {
     case 'hour':
       return addHours(origin, x / zoom.unitWidth);
     case 'day':
+    case '7day':
       return addDays(origin, x / zoom.unitWidth);
     case 'week':
       return addDays(origin, (x / zoom.unitWidth) * 7);
@@ -116,6 +119,7 @@ export function generateTimelineUnits(
       step = (d) => addHours(d, 1);
       break;
     case 'day':
+    case '7day':
       current = startOfDay(startDate);
       step = (d) => addDays(d, 1);
       break;
@@ -188,6 +192,7 @@ export function generateSubHeaders(
       step = (d) => addDays(d, 1);
       break;
     case 'day':
+    case '7day':
       current = startOfMonth(startDate);
       step = (d) => addMonths(d, 1);
       break;

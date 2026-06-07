@@ -34,6 +34,10 @@ export const useChartStore = create<ChartState>((set, get) => ({
   setViewport: (width, height) => set({ viewportWidth: width, viewportHeight: height }),
 }));
 
-export function getZoomConfig(level: ZoomLevel) {
-  return ZOOM_LEVELS[level];
+export function getZoomConfig(level: ZoomLevel, viewportWidth?: number) {
+  const config = ZOOM_LEVELS[level];
+  if (level === '7day' && viewportWidth && viewportWidth > 0) {
+    return { ...config, unitWidth: Math.floor(viewportWidth / 7) };
+  }
+  return config;
 }
