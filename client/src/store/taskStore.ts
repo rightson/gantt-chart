@@ -20,17 +20,23 @@ export interface TaskCard {
   color?: string;
   createdAt: string;
   updatedAt: string;
+  deletedAt?: string | null;
 }
 
 interface TaskState {
   tasks: TaskCard[];
+  trashedTasks: TaskCard[];
   selectedTaskId: string | null;
   modalTaskId: string | null;
   loading: boolean;
+  trashLoading: boolean;
   fetchTasks: (projectId: string) => Promise<void>;
+  fetchTrashedTasks: (projectId: string) => Promise<void>;
   createTask: (data: Partial<TaskCard> & { projectId: string; title: string }) => Promise<TaskCard>;
   updateTask: (id: string, changes: Partial<TaskCard>) => Promise<void>;
   deleteTask: (id: string) => Promise<void>;
+  restoreTask: (id: string) => Promise<TaskCard>;
+  permanentDeleteTask: (id: string) => Promise<void>;
   setSelectedTask: (id: string | null) => void;
   setModalTask: (id: string | null) => void;
   applyRemoteUpdate: (taskId: string, changes: Partial<TaskCard>) => void;
@@ -40,9 +46,11 @@ interface TaskState {
 
 export const useTaskStore = create<TaskState>((set, get) => ({
   tasks: [],
+  trashedTasks: [],
   selectedTaskId: null,
   modalTaskId: null,
   loading: false,
+  trashLoading: false,
 
   fetchTasks: async (projectId) => {
     set({ loading: true });
@@ -51,6 +59,16 @@ export const useTaskStore = create<TaskState>((set, get) => ({
       set({ tasks, loading: false });
     } catch {
       set({ loading: false });
+    }
+  },
+
+  fetchTrashedTasks: async (projectId) => {
+    set({ trashLoading: true });
+    try {
+      const trashedTasks = await api.get<TaskCard[]>(`/tasks/project/${projectId}/trash`);
+      set({ trashedTasks, trashLoading: false });
+    } catch {
+      set({ trashLoading: false });
     }
   },
 
@@ -72,6 +90,20 @@ export const useTaskStore = create<TaskState>((set, get) => ({
   deleteTask: async (id) => {
     await api.delete(`/tasks/${id}`);
     set((s) => ({ tasks: s.tasks.filter(t => t.id !== id) }));
+  },
+
+  restoreTask: async (id) => {
+    const task = await api.post<TaskCard>(`/tasks/${id}/restore`, {});
+    set((s) => ({
+      trashedTasks: s.trashedTasks.filter(t => t.id !== id),
+      tasks: [...s.tasks, task],
+    }));
+    return task;
+  },
+
+  permanentDeleteTask: async (id) => {
+    await api.delete(`/tasks/${id}/permanent`);
+    set((s) => ({ trashedTasks: s.trashedTasks.filter(t => t.id !== id) }));
   },
 
   setSelectedTask: (id) => set({ selectedTaskId: id }),

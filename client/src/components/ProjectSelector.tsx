@@ -9,7 +9,11 @@ const THEME_OPTIONS: { value: ThemeMode; label: string }[] = [
   { value: 'system', label: '💻' },
 ];
 
-export function ProjectSelector() {
+interface ProjectSelectorProps {
+  onTrashClick?: () => void;
+}
+
+export function ProjectSelector({ onTrashClick }: ProjectSelectorProps) {
   const { projects, currentProject, fetchProjects, createProject, setCurrentProject } = useProjectStore();
   const { user, logout } = useAuthStore();
   const { mode, setMode, colors } = useThemeStore();
@@ -105,6 +109,18 @@ export function ProjectSelector() {
 
       {/* Spacer */}
       <div style={{ flex: 1 }} />
+
+      {/* Trash */}
+      {currentProject && (
+        <button
+          onClick={onTrashClick}
+          title="View trash"
+          style={{ ...smallBtn, background: colors.btnSecondary, color: colors.textPrimary, display: 'flex', alignItems: 'center', gap: 4 }}
+        >
+          <span style={{ fontSize: 14, lineHeight: 1 }}>&#128465;</span>
+          Trash
+        </button>
+      )}
 
       {/* Theme toggle */}
       <div style={{ display: 'flex', gap: 2, background: colors.bgPrimary, borderRadius: 6, padding: 2 }}>

@@ -1,6 +1,6 @@
 import { FastifyInstance } from 'fastify';
 import { v4 as uuid } from 'uuid';
-import { eq } from 'drizzle-orm';
+import { eq, and, isNull, isNotNull } from 'drizzle-orm';
 import { db, schema } from '../db/index.js';
 import { authHook } from '../middleware/auth.js';
 
@@ -19,8 +19,31 @@ export default async function taskRoutes(app: FastifyInstance) {
   app.get('/project/:projectId', async (request) => {
     const { projectId } = request.params as any;
     const tasks = await db.select().from(schema.tasks)
-      .where(eq(schema.tasks.projectId, projectId));
+      .where(and(eq(schema.tasks.projectId, projectId), isNull(schema.tasks.deletedAt)));
     return tasks.map(serializeTask);
+  });
+
+  // Get deleted (trashed) tasks for a project
+  app.get('/project/:projectId/trash', async (request) => {
+    const { projectId } = request.params as any;
+    const tasks = await db.select().from(schema.tasks)
+      .where(and(eq(schema.tasks.projectId, projectId), isNotNull(schema.tasks.deletedAt)));
+    return tasks.map(serializeTask);
+  });
+
+  // Restore a deleted task
+  app.post('/:id/restore', async (request, reply) => {
+    const { id } = request.params as any;
+    const [existing] = await db.select().from(schema.tasks).where(eq(schema.tasks.id, id));
+    if (!existing) {
+      return reply.code(404).send({ error: 'Task not found' });
+    }
+    if (!existing.deletedAt) {
+      return reply.code(400).send({ error: 'Task is not deleted' });
+    }
+    await db.update(schema.tasks).set({ deletedAt: null, updatedAt: new Date().toISOString() }).where(eq(schema.tasks.id, id));
+    const [task] = await db.select().from(schema.tasks).where(eq(schema.tasks.id, id));
+    return serializeTask(task);
   });
 
   app.post('/', async (request, reply) => {
@@ -102,7 +125,19 @@ export default async function taskRoutes(app: FastifyInstance) {
     if (!existing) {
       return reply.code(404).send({ error: 'Task not found' });
     }
+    const deletedAt = new Date().toISOString();
+    await db.update(schema.tasks).set({ deletedAt, updatedAt: deletedAt }).where(eq(schema.tasks.id, id));
+    return { message: 'Task moved to trash', deletedAt };
+  });
+
+  // Permanently delete a task from trash
+  app.delete('/:id/permanent', async (request, reply) => {
+    const { id } = request.params as any;
+    const [existing] = await db.select().from(schema.tasks).where(eq(schema.tasks.id, id));
+    if (!existing) {
+      return reply.code(404).send({ error: 'Task not found' });
+    }
     await db.delete(schema.tasks).where(eq(schema.tasks.id, id));
-    return { message: 'Task deleted' };
+    return { message: 'Task permanently deleted' };
   });
 }

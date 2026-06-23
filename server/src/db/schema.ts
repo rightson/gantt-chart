@@ -43,4 +43,5 @@ export const tasks = pgTable('tasks', {
   color: text('color'),
   createdAt: text('created_at').notNull(),
   updatedAt: text('updated_at').notNull(),
+  deletedAt: text('deleted_at'),
 });
