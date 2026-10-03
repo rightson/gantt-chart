@@ -13,19 +13,50 @@ function serializeTask(task: any) {
   };
 }
 
+async function canAccessProject(userId: string, projectId: string) {
+  const [ownedProject] = await db
+    .select({ id: schema.projects.id })
+    .from(schema.projects)
+    .where(and(eq(schema.projects.id, projectId), eq(schema.projects.ownerId, userId)))
+    .limit(1);
+  if (ownedProject) return true;
+
+  const [membership] = await db
+    .select({ id: schema.projectMembers.id })
+    .from(schema.projectMembers)
+    .where(
+      and(
+        eq(schema.projectMembers.projectId, projectId),
+        eq(schema.projectMembers.userId, userId),
+      ),
+    )
+    .limit(1);
+  return Boolean(membership);
+}
+
+async function canAccessTask(userId: string, task: typeof schema.tasks.$inferSelect) {
+  return canAccessProject(userId, task.projectId);
+}
+
 export default async function taskRoutes(app: FastifyInstance) {
   app.addHook('onRequest', authHook);
 
-  app.get('/project/:projectId', async (request) => {
+  app.get('/project/:projectId', async (request, reply) => {
     const { projectId } = request.params as any;
+    if (!(await canAccessProject(request.user!.userId, projectId))) {
+      return reply.code(404).send({ error: 'Project not found' });
+    }
     const tasks = await db.select().from(schema.tasks)
       .where(and(eq(schema.tasks.projectId, projectId), isNull(schema.tasks.deletedAt)));
     return tasks.map(serializeTask);
   });
 
   // Get deleted (trashed) tasks for a project
-  app.get('/project/:projectId/trash', async (request) => {
+  app.get('/project/:projectId/trash', async (request, reply) => {
     const { projectId } = request.params as any;
+    if (!(await canAccessProject(request.user!.userId, projectId))) {
+      return reply.code(404).send({ error: 'Project not found' });
+    }
     const tasks = await db.select().from(schema.tasks)
       .where(and(eq(schema.tasks.projectId, projectId), isNotNull(schema.tasks.deletedAt)));
     return tasks.map(serializeTask);
@@ -36,6 +67,9 @@ export default async function taskRoutes(app: FastifyInstance) {
     const { id } = request.params as any;
     const [existing] = await db.select().from(schema.tasks).where(eq(schema.tasks.id, id));
     if (!existing) {
+      return reply.code(404).send({ error: 'Task not found' });
+    }
+    if (!(await canAccessTask(request.user!.userId, existing))) {
       return reply.code(404).send({ error: 'Task not found' });
     }
     if (!existing.deletedAt) {
@@ -51,6 +85,10 @@ export default async function taskRoutes(app: FastifyInstance) {
       projectId, title, description, category, tags, ownerId,
       memberIds, startDate, dueDate, etaDate, priority, row, color,
     } = request.body as any;
+
+    if (!(await canAccessProject(request.user!.userId, projectId))) {
+      return reply.code(404).send({ error: 'Project not found' });
+    }
 
     const id = uuid();
     const now = new Date().toISOString();
@@ -83,6 +121,9 @@ export default async function taskRoutes(app: FastifyInstance) {
     const { id } = request.params as any;
     const [existing] = await db.select().from(schema.tasks).where(eq(schema.tasks.id, id));
     if (!existing) {
+      return reply.code(404).send({ error: 'Task not found' });
+    }
+    if (!(await canAccessTask(request.user!.userId, existing))) {
       return reply.code(404).send({ error: 'Task not found' });
     }
     if (existing.isLocked) {
@@ -125,6 +166,9 @@ export default async function taskRoutes(app: FastifyInstance) {
     if (!existing) {
       return reply.code(404).send({ error: 'Task not found' });
     }
+    if (!(await canAccessTask(request.user!.userId, existing))) {
+      return reply.code(404).send({ error: 'Task not found' });
+    }
     const deletedAt = new Date().toISOString();
     await db.update(schema.tasks).set({ deletedAt, updatedAt: deletedAt }).where(eq(schema.tasks.id, id));
     return { message: 'Task moved to trash', deletedAt };
@@ -136,6 +180,12 @@ export default async function taskRoutes(app: FastifyInstance) {
     const [existing] = await db.select().from(schema.tasks).where(eq(schema.tasks.id, id));
     if (!existing) {
       return reply.code(404).send({ error: 'Task not found' });
+    }
+    if (!(await canAccessTask(request.user!.userId, existing))) {
+      return reply.code(404).send({ error: 'Task not found' });
+    }
+    if (!existing.deletedAt) {
+      return reply.code(400).send({ error: 'Task is not in trash' });
     }
     await db.delete(schema.tasks).where(eq(schema.tasks.id, id));
     return { message: 'Task permanently deleted' };
