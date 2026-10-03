@@ -38,8 +38,7 @@ export const useChartStore = create<ChartState>((set, get) => ({
 
 export function getZoomConfig(level: ZoomLevel, viewportWidth?: number): ZoomConfig {
   const config = ZOOM_LEVELS[level];
-  // For 'day' level, dynamically size columns to fit ~7 days on screen
-  if (level === 'day' && viewportWidth && viewportWidth > 0) {
+  if (level === '7day' && viewportWidth && viewportWidth > 0) {
     return { ...config, unitWidth: Math.floor(viewportWidth / 7) };
   }
   return config;

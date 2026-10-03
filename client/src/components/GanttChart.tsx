@@ -199,62 +199,40 @@ export function GanttChart() {
         zIndex: 10,
       }}>
         {subHeaders.map((unit, i) => {
-          const left = unit.x - scrollX;
-          const right = left + unit.width;
-
-          // For day zoom, clamp the label to stay within the visible viewport
-          if (zoomLevel === 'day') {
-            const visibleLeft = Math.max(left, 0);
-            const visibleRight = Math.min(right, viewportWidth);
-            const visibleWidth = visibleRight - visibleLeft;
-            if (visibleWidth <= 0) return null;
-
-            return (
-              <div
-                key={i}
-                style={{
-                  position: 'absolute',
-                  left,
-                  width: unit.width,
-                  height: 24,
-                  display: 'flex',
-                  alignItems: 'center',
-                  color: colors.textMuted,
-                  fontSize: 11,
-                  fontWeight: 600,
-                  borderRight: `1px solid ${colors.borderSecondary}`,
-                }}
-              >
-                <span style={{
-                  position: 'sticky',
-                  left: 8,
-                  right: 8,
-                  marginLeft: Math.max(0, -left) + 8,
-                }}>
-                  {unit.label}
-                </span>
-              </div>
-            );
-          }
+          const unitLeft = unit.x - scrollX;
+          const unitRight = unitLeft + unit.width;
+          // Clamp the label to the visible portion of the sub-header
+          const visibleLeft = Math.max(unitLeft, 0);
+          const visibleRight = Math.min(unitRight, viewportWidth);
+          const visibleWidth = Math.max(visibleRight - visibleLeft, 0);
 
           return (
             <div
               key={i}
               style={{
                 position: 'absolute',
-                left,
+                left: unitLeft,
                 width: unit.width,
                 height: 24,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: colors.textMuted,
-                fontSize: 11,
-                fontWeight: 600,
                 borderRight: `1px solid ${colors.borderSecondary}`,
               }}
             >
-              {unit.label}
+              <div
+                style={{
+                  position: 'absolute',
+                  left: visibleLeft - unitLeft,
+                  width: visibleWidth,
+                  height: 24,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: colors.textMuted,
+                  fontSize: 11,
+                  fontWeight: 600,
+                }}
+              >
+                {visibleWidth > 40 ? unit.label : ''}
+              </div>
             </div>
           );
         })}

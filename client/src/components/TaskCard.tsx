@@ -230,7 +230,9 @@ export function TaskCardComponent({
 
       {/* Edit button (visible on hover) */}
       {isHovered && !isDragging && (
-        <div
+        <button
+          type="button"
+          aria-label={`Edit ${task.title}`}
           onClick={handleEditClick}
           onMouseDown={(e) => e.stopPropagation()}
           style={{
@@ -245,6 +247,9 @@ export function TaskCardComponent({
             cursor: 'pointer',
             flexShrink: 0,
             transition: 'background 0.15s',
+            border: 0,
+            padding: 0,
+            color: 'inherit',
           }}
           onMouseOver={(e) => (e.currentTarget.style.background = 'rgba(255,255,255,0.35)')}
           onMouseOut={(e) => (e.currentTarget.style.background = 'rgba(255,255,255,0.2)')}
@@ -252,7 +257,7 @@ export function TaskCardComponent({
           <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
             <path d="M11.5 1.5l3 3L5 14H2v-3L11.5 1.5z" />
           </svg>
-        </div>
+        </button>
       )}
 
       {/* Right resize handle */}
