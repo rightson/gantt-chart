@@ -57,6 +57,8 @@ await sql`
   )
 `;
 
+await sql`ALTER TABLE tasks ADD COLUMN IF NOT EXISTS deleted_at TEXT`;
+
 await sql`CREATE INDEX IF NOT EXISTS idx_tasks_project ON tasks(project_id)`;
 await sql`CREATE INDEX IF NOT EXISTS idx_project_members_project ON project_members(project_id)`;
 await sql`CREATE INDEX IF NOT EXISTS idx_project_members_user ON project_members(user_id)`;

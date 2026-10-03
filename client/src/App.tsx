@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useAuthStore } from './store/authStore';
 import { useProjectStore } from './store/projectStore';
 import { useTaskStore } from './store/taskStore';
@@ -6,12 +6,14 @@ import { useThemeStore } from './store/themeStore';
 import { AuthPage } from './components/AuthPage';
 import { ProjectSelector } from './components/ProjectSelector';
 import { GanttChart } from './components/GanttChart';
+import { TrashView } from './components/TrashView';
 import { useSocket } from './hooks/useSocket';
 
 function AppContent() {
   const currentProject = useProjectStore((s) => s.currentProject);
   const { fetchTasks } = useTaskStore();
   const colors = useThemeStore((s) => s.colors);
+  const [showTrash, setShowTrash] = useState(false);
 
   // Connect socket for the current project
   useSocket(currentProject?.id ?? null);
@@ -24,7 +26,7 @@ function AppContent() {
 
   return (
     <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column' }}>
-      <ProjectSelector />
+      <ProjectSelector onTrashClick={() => setShowTrash(true)} />
       <div style={{ flex: 1, marginTop: 48, position: 'relative' }}>
         {currentProject ? (
           <GanttChart />
@@ -48,6 +50,7 @@ function AppContent() {
           </div>
         )}
       </div>
+      {showTrash && currentProject && <TrashView onClose={() => setShowTrash(false)} />}
     </div>
   );
 }
