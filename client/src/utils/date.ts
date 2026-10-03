@@ -27,7 +27,7 @@ export const ZOOM_LEVELS: Record<ZoomLevel, ZoomConfig> = {
   multiyear: { level: 'multiyear', unitWidth: 60,  headerFormat: 'yyyy' },
 };
 
-const ZOOM_ORDER: ZoomLevel[] = ['halfhour', 'hour', 'day', '7day', 'week', 'month', 'quarter', 'halfyear', 'year', 'multiyear'];
+export const ZOOM_ORDER: ZoomLevel[] = ['halfhour', 'hour', 'day', '7day', 'week', 'month', 'quarter', 'halfyear', 'year', 'multiyear'];
 
 export function getNextZoomIn(current: ZoomLevel): ZoomLevel {
   const idx = ZOOM_ORDER.indexOf(current);
